@@ -1,0 +1,6 @@
+# This file contains model parameters in iEBE-MUSIC for bayesian analysis
+# format: parameter_name: label, min, max
+lambdaB: lambdaB, 0., 1.             # the strength of the baryon junction fluctuation
+s_factor: sfactor, 0.5, 3.0          # normalization factor
+Shear_to_S_ratio: eta/s, 0.0, 0.2    # specific shear viscosity (eta/s)
+kappa_coefficient: kappa, 0.0, 1.2   # net baryon diffusion constant
