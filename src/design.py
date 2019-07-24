@@ -95,8 +95,8 @@ class Design:
     The class also implicitly converts to a numpy array.
 
     """
-    def __init__(self, pardict, npoints=500, validation=False, seed=None):
-        self.pardict = pardict
+    def __init__(self, parfile, npoints=500, validation=False, seed=None):
+        self.pardict = self.parse_model_parameter_file(parfile)
         self.type = 'validation' if validation else 'main'
 
         self.ndim = len(self.pardict.keys())
@@ -121,6 +121,20 @@ class Design:
         self.array = self.min + (self.max - self.min)*generate_lhs(
             npoints=npoints, ndim=self.ndim, seed=seed
         )
+
+    def parse_model_parameter_file(self, parfile):
+        pardict = {}
+        f = open(parfile, 'r')
+        for line in f:
+            par = line.split("#")[0]
+            if par != "":
+                par = par.split(":")
+                key = par[0]
+                val = [ival.strip() for ival in par[1].split(",")]
+                for i in range(1, 3):
+                    val[i] = float(val[i])
+                pardict.update({key: val})
+        return pardict
 
     def __array__(self):
         return self.array
@@ -152,15 +166,15 @@ def main():
         'inputs_dir', type=Path,
         help='directory to place input files'
     )
+    parser.add_argument(
+        '-par', '--par_file', metavar='', type=str,
+        default='model_parameter_dict_examples/iEBE-MUSIC.txt',
+        help='user-defined model parameters dictionary file')
     args = parser.parse_args()
 
-    pardict = {
-            "a": ("a", -1., 1.),
-            "b": ("b", 0., 2.),
-            "c": ("c", 5., 15.),
-    }
     for validation in [False, True]:
-        Design(pardict, validation=validation).write_files(args.inputs_dir)
+        Design(args.par_file, validation=validation).write_files(
+                                                            args.inputs_dir)
 
     logging.info('wrote all files to %s', args.inputs_dir)
 
