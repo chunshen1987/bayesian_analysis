@@ -16,7 +16,8 @@ def model(para_dict, x):
                           + rel_error*np.random.random(len(x))))
     y2 = (para_dict["C"]*(np.cosh(para_dict["D"]*x)
                           + rel_error*np.random.random(len(x))))
-    Y = np.concatenate(y1, y2)
+    print(y1, y2)
+    Y = np.concatenate((y1, y2))
     return Y
 
 def main():
