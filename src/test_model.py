@@ -11,8 +11,10 @@ import numpy as np
 
 def model(para_dict, x):
     """This is a simple model"""
-    y1 = para_dict["A"]*np.exp(-para_dict["B"]*x**2.)
-    y2 = para_dict["C"]*np.cosh(para_dict["D"]*x)
+    y1 = (para_dict["A"]*(np.exp(-para_dict["B"]*x**2.)
+                          + 0.05*np.random.random(len(x))))
+    y2 = (para_dict["C"]*(np.cosh(para_dict["D"]*x)
+                          + 0.05*np.random.random(len(x))))
     return y1, y2
 
 def main():
