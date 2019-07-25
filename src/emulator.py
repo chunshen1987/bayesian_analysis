@@ -104,6 +104,7 @@ class Emulator:
 
 
     def _load_training_data(self, data_path):
+        """This function read in training data set at every sample point"""
         self.model_data = []
         self.design_points = []
         for iev in glob(path.join(data_path, "*")):
