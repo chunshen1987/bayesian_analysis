@@ -17,10 +17,8 @@ Run ``python -m src.design --help`` for usage information.
 
 """
 
-import itertools
 import logging
 from pathlib import Path
-import re
 import subprocess
 
 import numpy as np
@@ -96,7 +94,7 @@ class Design:
 
     """
     def __init__(self, parfile, npoints=500, validation=False, seed=None):
-        self.pardict = self.parse_model_parameter_file(parfile)
+        self.pardict = self._parse_model_parameter_file(parfile)
         self.type = 'validation' if validation else 'main'
 
         self.ndim = len(self.pardict.keys())
@@ -122,7 +120,7 @@ class Design:
             npoints=npoints, ndim=self.ndim, seed=seed
         )
 
-    def parse_model_parameter_file(self, parfile):
+    def _parse_model_parameter_file(self, parfile):
         pardict = {}
         f = open(parfile, 'r')
         for line in f:

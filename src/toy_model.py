@@ -8,14 +8,16 @@ It read in the sampled parameter file and generate outputs
 """
 
 import numpy as np
+import pathlib
+from shutil import copy
 
 def model(para_dict, x):
     """This is a simple model"""
     rel_error = 0.1
-    y1 = (para_dict["A"]*(np.exp(-para_dict["B"]*x**2.)
-                          + rel_error*np.random.random(len(x))))
-    y2 = (para_dict["C"]*(np.cosh(para_dict["D"]*x)
-                          + rel_error*np.random.random(len(x))))
+    y1 = para_dict["A"]*np.exp(-para_dict["B"]*x**2.)
+    y1 = y1*(1. + rel_error*np.random.random(len(x)))
+    y2 = para_dict["C"]*np.cosh(para_dict["D"]*x)
+    y2 = y2*(1. + rel_error*np.random.random(len(x)))
     Y = np.concatenate((y1, y2))
     return Y
 
@@ -40,7 +42,11 @@ def main():
     Y = model(para_dict, x)
 
     sample_id = args.input_file.split("_")[1]
-    np.savetxt("output_{}.txt".format(sample_id), Y, delimiter=" ", fmt="%.4e")
+    folder_name = 'run_{}'.format(sample_id)
+    pathlib.Path(folder_name).mkdir(parents=True, exist_ok=True)
+    copy(args.input_file, "{}/sample.txt".format(folder_name))
+    np.savetxt("{}/output.txt".format(folder_name),
+               Y, delimiter=" ", fmt="%.4e")
 
 if __name__ == '__main__':
     main()
