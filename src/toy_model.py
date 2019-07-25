@@ -11,11 +11,13 @@ import numpy as np
 
 def model(para_dict, x):
     """This is a simple model"""
+    rel_error = 0.1
     y1 = (para_dict["A"]*(np.exp(-para_dict["B"]*x**2.)
-                          + 0.05*np.random.random(len(x))))
+                          + rel_error*np.random.random(len(x))))
     y2 = (para_dict["C"]*(np.cosh(para_dict["D"]*x)
-                          + 0.05*np.random.random(len(x))))
-    return y1, y2
+                          + rel_error*np.random.random(len(x))))
+    Y = np.concatenate(y1, y2)
+    return Y
 
 def main():
     """This is the main function"""
@@ -35,12 +37,10 @@ def main():
     para_file.close()
 
     x = np.linspace(-5, 5., 21)
-    y1, y2 = model(para_dict, x)
+    Y = model(para_dict, x)
 
     sample_id = args.input_file.split("_")[1]
-    np.savetxt("output_{}.txt".format(sample_id),
-               np.array([x, y1, y2]).transpose(), delimiter=" ", fmt="%.4e")
-
+    np.savetxt("output_{}.txt".format(sample_id), Y, delimiter=" ", fmt="%.4e")
 
 if __name__ == '__main__':
     main()
