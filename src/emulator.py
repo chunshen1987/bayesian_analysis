@@ -144,6 +144,7 @@ class Emulator:
 
     def _load_training_data(self, data_path):
         """This function read in training data set at every sample point"""
+        print("loading training data from {} ...".format(data_path))
         self.model_data = []
         self.design_points = []
         for iev in glob(path.join(data_path, "*")):
@@ -157,6 +158,7 @@ class Emulator:
             self.model_data.append(temp_data)
         self.design_points = np.array(self.design_points)
         self.model_data = np.array(self.model_data)
+        print("All training data are loaded.")
 
 
     def predict(self, X, return_cov=False, extra_std=0):
