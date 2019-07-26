@@ -21,8 +21,12 @@ from glob import glob
 
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from sklearn.gaussian_process import GaussianProcessRegressor as GPR
+from sklearn.gaussian_process import kernels
+from sklearn.externals import joblib
 
 from . import cachedir, parse_model_parameter_file
+
 
 class Emulator:
     """
@@ -42,8 +46,18 @@ class Emulator:
     could be tricky.
 
     """
-    def __init__(self, training_set_path=".", npc=10, nrestarts=0):
+    def __init__(self, training_set_path=".", parameter_file="ABCD.txt",
+                 npc=10, nrestarts=0):
         self._load_training_data(training_set_path)
+
+        self.pardict = parse_model_parameter_file(parameter_file)
+        self.design_min = []
+        self.design_max = []
+        for par, val in self.pardict.items():
+            self.design_min.append(val[1])
+            self.design_max.append(val[2])
+        self.design_min = np.array(self.design_min)
+        self.design_max = np.array(self.design_max)
 
         self.npc = npc
         nev, self.nobs = self.model_data.shape
@@ -55,6 +69,30 @@ class Emulator:
         # `npc` components but save the full PC transformation for later.
         Z = self.pca.fit_transform(
                 self.scaler.fit_transform(self.model_data))[:, :npc]
+
+        # Define kernel (covariance function):
+        # Gaussian correlation (RBF) plus a noise term.
+        ptp = self.design_max - self.design_min
+        kernel = (
+            1. * kernels.RBF(
+                length_scale=ptp,
+                length_scale_bounds=np.outer(ptp, (.1, 10))
+            ) +
+            kernels.WhiteKernel(
+                noise_level=.1**2,
+                noise_level_bounds=(.01**2, 1)
+            )
+        )
+
+        # Fit a GP (optimize the kernel hyperparameters) to each PC.
+        self.gps = [
+            GPR(
+                kernel=kernel, alpha=0,
+                n_restarts_optimizer=nrestarts,
+                copy_X_train=False
+            ).fit(self.design_points, z)
+            for z in Z.T
+        ]
 
         # Construct the full linear transformation matrix, which is just the PC
         # matrix with the first axis multiplied by the explained standard
@@ -121,6 +159,89 @@ class Emulator:
         self.model_data = np.array(self.model_data)
 
 
+    def predict(self, X, return_cov=False, extra_std=0):
+        """
+        Predict model output at `X`.
+
+        X must be a 2D array-like with shape ``(nsamples, ndim)``. It is passed
+        directly to sklearn :meth:`GaussianProcessRegressor.predict`.
+
+        If `return_cov` is true, return a tuple ``(mean, cov)``, otherwise only
+        return the mean.
+
+        The mean is returned as a nested dict of observable arrays, each with
+        shape ``(nsamples, n_cent_bins)``.
+
+        The covariance is returned as a proxy object which extracts observable
+        sub-blocks using a dict-like interface:
+
+        The shape of the extracted covariance blocks are
+        ``(nsamples, n_cent_bins_1, n_cent_bins_2)``.
+
+        NB: the covariance is only computed between observables 
+            not between sample points.
+
+        `extra_std` is additional uncertainty which is added to each GP's
+        predictive uncertainty, e.g. to account for model systematic error.
+        It may either be a scalar or an array-like of length nsamples.
+
+        """
+        gp_mean = [gp.predict(X, return_cov=return_cov) for gp in self.gps]
+
+        if return_cov:
+            gp_mean, gp_cov = zip(*gp_mean)
+
+        mean = self._inverse_transform(
+            np.concatenate([m[:, np.newaxis] for m in gp_mean], axis=1)
+        )
+
+        if return_cov:
+            # Build array of the GP predictive variances at each sample point.
+            # shape: (nsamples, npc)
+            gp_var = np.concatenate([
+                c.diagonal()[:, np.newaxis] for c in gp_cov
+            ], axis=1)
+
+            # Add extra uncertainty to predictive variance.
+            extra_std = np.array(extra_std, copy=False).reshape(-1, 1)
+            gp_var += extra_std**2
+
+            # Compute the covariance at each sample point using the
+            # pre-calculated arrays (see constructor).
+            cov = np.dot(gp_var, self._var_trans).reshape(
+                X.shape[0], self.nobs, self.nobs
+            )
+            cov += self._cov_trunc
+
+            return mean, cov
+        else:
+            return mean
+
+
+    def sample_y(self, X, n_samples=1, random_state=None):
+        """
+        Sample model output at `X`.
+
+        Returns a nested dict of observable arrays, each with shape
+        ``(n_samples_X, n_samples, n_cent_bins)``.
+
+        """
+        # Sample the GP for each emulated PC.  The remaining components are
+        # assumed to have a standard normal distribution.
+        return self._inverse_transform(
+            np.concatenate([
+                gp.sample_y(
+                    X, n_samples=n_samples, random_state=random_state
+                )[:, :, np.newaxis]
+                for gp in self.gps
+            ] + [
+                np.random.standard_normal(
+                    (X.shape[0], n_samples, self.pca.n_components_ - self.npc)
+                )
+            ], axis=2)
+        )
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -128,6 +249,9 @@ if __name__ == '__main__':
         description='train emulators with the model dataset',
         argument_default=argparse.SUPPRESS
     )
+    parser.add_argument(
+        '-par', '--parameter_file', type=str,
+        help='model parameter filename')
     parser.add_argument(
         '-t', '--training_set_path', type=str,
         help='path for the training data set from model'
