@@ -278,3 +278,11 @@ if __name__ == '__main__':
         emu.npc,
         emu.pca.explained_variance_ratio_[:emu.npc].sum()
     ))
+
+    for n, (evr, gp) in enumerate(zip(
+            emu.pca.explained_variance_ratio_, emu.gps
+    )):
+        print(
+            'GP {}: {:.5f} of variance, LML = {:.5g}, kernel: {}'
+            .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
+        )
