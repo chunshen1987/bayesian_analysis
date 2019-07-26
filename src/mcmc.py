@@ -30,8 +30,55 @@ import logging
 import emcee
 import h5py
 import numpy as np
+from scipy.linalg import lapack
 
-from . import workdir
+from . import workdir, parse_model_parameter_file
+from .emulator import Emulator
+
+
+def mvn_loglike(y, cov):
+    """
+    Evaluate the multivariate-normal log-likelihood for difference vector `y`
+    and covariance matrix `cov`:
+
+        log_p = -1/2*[(y^T).(C^-1).y + log(det(C))] + const.
+
+    The likelihood is NOT NORMALIZED, since this does not affect MCMC.  The
+    normalization const = -n/2*log(2*pi), where n is the dimensionality.
+
+    Arguments `y` and `cov` MUST be np.arrays with dtype == float64 and shapes
+    (n) and (n, n), respectively.  These requirements are NOT CHECKED.
+
+    The calculation follows algorithm 2.1 in Rasmussen and Williams (Gaussian
+    Processes for Machine Learning).
+
+    """
+    # Compute the Cholesky decomposition of the covariance.
+    # Use bare LAPACK function to avoid scipy.linalg wrapper overhead.
+    L, info = lapack.dpotrf(cov, clean=False)
+
+    if info < 0:
+        raise ValueError(
+            'lapack dpotrf error: '
+            'the {}-th argument had an illegal value'.format(-info)
+        )
+    elif info < 0:
+        raise np.linalg.LinAlgError(
+            'lapack dpotrf error: '
+            'the leading minor of order {} is not positive definite'
+            .format(info)
+        )
+
+    # Solve for alpha = cov^-1.y using the Cholesky decomp.
+    alpha, info = lapack.dpotrs(L, y)
+
+    if info != 0:
+        raise ValueError(
+            'lapack dpotrs error: '
+            'the {}-th argument had an illegal value'.format(-info)
+        )
+
+    return -.5*np.dot(y, alpha) - np.log(L.diagonal()).sum()
 
 
 class LoggingEnsembleSampler(emcee.EnsembleSampler):
@@ -70,11 +117,107 @@ class Chain:
     system designs have the same parameters and ranges (except for the norms).
 
     """
-    def __init__(self, path=workdir / 'mcmc' / 'chain.hdf'):
+    def __init__(self, path=workdir / 'mcmc' / 'chain.hdf',
+                 expdata_path="./exp_data.dat",
+                 model_parafile="./model.dat",
+                 training_data_path="./training_data"
+    ):
         self.path = path
         self.path.parent.mkdir(exist_ok=True)
 
-    def run_mcmc(self, nsteps, nburnsteps=None, nwalkers=None, status=None):
+        # load the model parameter file
+        self.pardict = parse_model_parameter_file(model_parafile)
+        self.ndim = len(self.pardict.keys())
+        self.min = []
+        self.max = []
+        for par, val in self.pardict.items():
+            self.min.append(val[1])
+            self.max.append(val[2])
+        self.min = np.array(self.min)
+        self.max = np.array(self.max)
+
+        # load the experimental data to be fit
+        self.expdata, self.expdata_cov = self._read_in_exp_data(expdata_path)
+        self.nobs = self.expdata.shape[0]
+
+        # setup the emulator
+        self.emu = Emulator(
+            training_set_path=training_data_path,
+            parameter_file=model_parafile
+        )
+
+
+    def log_posterior(self, X, extra_std_prior_scale=.05):
+        """
+        Evaluate the posterior at `X`.
+
+        `extra_std_prior_scale` is the scale parameter for the prior
+        distribution on the model sys error parameter:
+
+            prior ~ sigma^2 * exp(-sigma/scale)
+
+        """
+        X = np.array(X, copy=False, ndmin=2)
+
+        lp = np.zeros(X.shape[0])
+
+        inside = np.all((X > self.min) & (X < self.max), axis=1)
+        lp[~inside] = -np.inf
+
+        nsamples = np.count_nonzero(inside)
+
+        if nsamples > 0:
+            extra_std = X[inside, -1]
+            model_Y, model_cov = self.emu.predict(
+                X[inside], return_cov=True, extra_std=extra_std
+            )
+
+            # allocate difference (model - expt) and covariance arrays
+            dY = np.empty([nsamples, self.nobs])
+            cov = np.empty([nsamples, self.nobs, self.nobs])
+            dY = model_Y - self.expdata
+            # add expt cov to model cov
+            cov = model_cov + self.expdata_cov
+
+            # compute log likelihood at each point
+            lp[inside] += list(map(mvn_loglike, dY, cov))
+
+            # add prior for extra_std (model sys error)
+            lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
+
+
+        return lp
+
+    def _read_in_exp_data(self, filepath):
+        """This function reads in exp data and compute the covarance matrix"""
+        data = np.loadtxt(filepath)
+        nobs = data.shape[0]
+        data_cov = np.zeros([nobs, nobs])
+        for i in range(nobs):
+            data_cov[i, i] = data[i, 1]**2.
+        return data[:, 0], data_cov
+
+
+    def random_pos(self, n=1):
+        """
+        Generate `n` random positions in parameter space.
+
+        """
+        return np.random.uniform(self.min, self.max, (n, self.ndim))
+
+
+    @staticmethod
+    def map(f, args):
+        """
+        Dummy function so that this object can be used as a 'pool' for
+        :meth:`emcee.EnsembleSampler`.
+
+        """
+        return f(args)
+
+
+    def run_mcmc(self, nsteps=500, nburnsteps=None, nwalkers=None,
+                 status=None):
         """
         Run MCMC model calibration.  If the chain already exists, continue from
         the last point, otherwise burn-in and start the chain.
@@ -117,6 +260,10 @@ class Chain:
         sampler.run_mcmc(X0, nsteps, status=status)
 
         logging.info('writing chain to file')
+        samples = sampler.chain[:, :, :].reshape((-1, self.ndim))
+        results = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
+                      zip(*np.percentile(samples, [16, 50, 84], axis=0)))
+        print(list(results))
 
 
 def main():
@@ -125,24 +272,41 @@ def main():
             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument(
-        'nsteps', type=int,
+        '--nsteps', type=int, default=500,
         help='number of steps'
     )
     parser.add_argument(
-        '--nwalkers', type=int,
+        '--nwalkers', type=int, default=100,
         help='number of walkers'
     )
     parser.add_argument(
-        '--nburnsteps', type=int,
+        '--nburnsteps', type=int, default=200,
         help='number of burn-in steps'
     )
     parser.add_argument(
         '--status', type=int,
         help='number of steps between logging status'
     )
+    parser.add_argument(
+        '--exp', type=str, default='./exp_data.dat',
+        help="experimental data"
+    )
+    parser.add_argument(
+        '--model_design', type=str,
+        default='model_parameter_dict_examples/ABCD.txt',
+        help="model parameter filename"
+    )
+    parser.add_argument(
+        '--training_set', type=str,
+        default='./training_dataset',
+        help="model training set parameters"
+    )
     args = parser.parse_args()
 
-    #Chain().run_mcmc(**vars(parser.parse_args()))
+    mymcmc = Chain(expdata_path=args.exp, model_parafile=args.model_design,
+                   training_data_path=args.training_set)
+    mymcmc.run_mcmc(nsteps=args.nsteps, nburnsteps=args.nburnsteps,
+                    nwalkers=args.nwalkers, status=args.status)
 
 
 if __name__ == '__main__':

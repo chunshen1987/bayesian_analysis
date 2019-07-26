@@ -30,8 +30,8 @@ def pseudo_expdata(x):
         "D": 0.3,
     }
     Y_exp = model(para_dict_true, x)
-    Y_stat_err = 0.1*np.random.random(len(Y_exp))
-    Y_sys_err = 0.1*np.random.random(len(Y_exp))
+    Y_stat_err = 0.1*Y_exp
+    Y_sys_err = 0.1*Y_exp
     output = np.array([Y_exp, Y_stat_err, Y_sys_err])
     return output
 
