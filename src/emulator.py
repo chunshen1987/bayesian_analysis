@@ -144,7 +144,7 @@ class Emulator:
 
     def _load_training_data(self, data_path):
         """This function read in training data set at every sample point"""
-        print("loading training data from {} ...".format(data_path))
+        logging.info("loading training data from {} ...".format(data_path))
         self.model_data = []
         self.design_points = []
         for iev in glob(path.join(data_path, "*")):
@@ -158,7 +158,7 @@ class Emulator:
             self.model_data.append(temp_data)
         self.design_points = np.array(self.design_points)
         self.model_data = np.array(self.model_data)
-        print("All training data are loaded.")
+        logging.info("All training data are loaded.")
 
 
     def predict(self, X, return_cov=False, extra_std=0):
@@ -276,7 +276,7 @@ if __name__ == '__main__':
     kwargs = vars(args)
 
     emu = Emulator(**kwargs)
-    print('{} PCs explain {:.5f} of variance'.format(
+    logging.info('{} PCs explain {:.5f} of variance'.format(
         emu.npc,
         emu.pca.explained_variance_ratio_[:emu.npc].sum()
     ))
@@ -284,7 +284,7 @@ if __name__ == '__main__':
     for n, (evr, gp) in enumerate(zip(
             emu.pca.explained_variance_ratio_, emu.gps
     )):
-        print(
+        logging.info(
             'GP {}: {:.5f} of variance, LML = {:.5g}, kernel: {}'
             .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
         )
