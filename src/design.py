@@ -23,7 +23,7 @@ import subprocess
 
 import numpy as np
 
-from . import cachedir
+from . import cachedir, parse_model_parameter_file
 
 
 def generate_lhs(npoints, ndim, seed):
@@ -94,13 +94,13 @@ class Design:
 
     """
     def __init__(self, parfile, npoints=500, validation=False, seed=None):
-        self.pardict = self._parse_model_parameter_file(parfile)
+        self.pardict = parse_model_parameter_file(parfile)
         self.type = 'validation' if validation else 'main'
 
         self.ndim = len(self.pardict.keys())
 
         # use padded numbers for design point names
-        fmt = 'sample_{:0' + str(len(str(npoints - 1))) + 'd}'
+        fmt = 'parameter_{:0' + str(len(str(npoints - 1))) + 'd}'
         self.points = [fmt.format(i) for i in range(npoints)]
 
         # set default seeds
@@ -119,20 +119,6 @@ class Design:
         self.array = self.min + (self.max - self.min)*generate_lhs(
             npoints=npoints, ndim=self.ndim, seed=seed
         )
-
-    def _parse_model_parameter_file(self, parfile):
-        pardict = {}
-        f = open(parfile, 'r')
-        for line in f:
-            par = line.split("#")[0]
-            if par != "":
-                par = par.split(":")
-                key = par[0]
-                val = [ival.strip() for ival in par[1].split(",")]
-                for i in range(1, 3):
-                    val[i] = float(val[i])
-                pardict.update({key: val})
-        return pardict
 
     def __array__(self):
         return self.array

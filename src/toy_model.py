@@ -28,7 +28,7 @@ def main():
     parser = argparse.ArgumentParser(description='A simple test model')
     parser.add_argument(
         '-i', '--input_file', metavar='', type=str,
-        default='sample_0', help='parameter input file')
+        default='parameter_0', help='parameter input file')
     args = parser.parse_args()
 
     para_dict = {}
@@ -44,7 +44,7 @@ def main():
     sample_id = args.input_file.split("_")[1]
     folder_name = 'run_{}'.format(sample_id)
     pathlib.Path(folder_name).mkdir(parents=True, exist_ok=True)
-    copy(args.input_file, "{}/sample.txt".format(folder_name))
+    copy(args.input_file, "{}/parameters.txt".format(folder_name))
     np.savetxt("{}/output.txt".format(folder_name),
                Y, delimiter=" ", fmt="%.4e")
 

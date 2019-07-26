@@ -22,6 +22,7 @@ from glob import glob
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
+from . import cachedir, parse_model_parameter_file
 
 class Emulator:
     """
@@ -108,7 +109,7 @@ class Emulator:
         self.model_data = []
         self.design_points = []
         for iev in glob(path.join(data_path, "*")):
-            with open(path.join(iev, "sample.txt"), "r") as parfile:
+            with open(path.join(iev, "parameters.txt"), "r") as parfile:
                 parameters = []
                 for line in parfile:
                     line = line.split()
