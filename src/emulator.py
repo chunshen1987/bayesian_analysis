@@ -249,7 +249,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description='train emulators with the model dataset',
-        argument_default=argparse.SUPPRESS
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
         '-par', '--parameter_file', type=str,

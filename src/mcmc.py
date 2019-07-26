@@ -120,7 +120,9 @@ class Chain:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Markov chain Monte Carlo')
+    parser = argparse.ArgumentParser(
+            description='Markov chain Monte Carlo',
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument(
         'nsteps', type=int,

@@ -145,7 +145,9 @@ class Design:
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description='generate design input files')
+    parser = argparse.ArgumentParser(
+            description='generate design input files',
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         'inputs_dir', type=Path,
         help='directory to place input files'
