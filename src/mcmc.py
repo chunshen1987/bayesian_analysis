@@ -118,16 +118,17 @@ class Chain:
     system designs have the same parameters and ranges (except for the norms).
 
     """
-    def __init__(self, path=workdir / 'mcmc' / 'chain.hdf',
+    def __init__(self, mcmc_path=workdir / 'mcmc' / 'chain.h5',
                  expdata_path="./exp_data.dat",
                  model_parafile="./model.dat",
                  training_data_path="./training_data"
     ):
         logging.info('Initializing MCMC ...')
-        self.path = path
-        self.path.parent.mkdir(exist_ok=True)
-        logging.info(
-            'Final Markov Chain results will be saved in {}'.format(path))
+        self.mcmc_path = mcmc_path
+        self.mcmc_path.parent.mkdir(exist_ok=True)
+        logging.info('Final Markov Chain results will be saved in {}'.format(
+            self.mcmc_path)
+        )
 
         # load the model parameter file
         logging.info('Loading the model parameters space from {} ...'.format(
