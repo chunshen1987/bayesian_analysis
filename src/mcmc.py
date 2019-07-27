@@ -123,10 +123,16 @@ class Chain:
                  model_parafile="./model.dat",
                  training_data_path="./training_data"
     ):
+        logging.info('Initializing MCMC ...')
         self.path = path
         self.path.parent.mkdir(exist_ok=True)
+        logging.info(
+            'Final Markov Chain results will be saved in {}'.format(path))
 
         # load the model parameter file
+        logging.info('Loading the model parameters space from {} ...'.format(
+            model_parafile)
+        )
         self.pardict = parse_model_parameter_file(model_parafile)
         self.ndim = len(self.pardict.keys())
         self.min = []
@@ -138,10 +144,13 @@ class Chain:
         self.max = np.array(self.max)
 
         # load the experimental data to be fit
+        logging.info(
+            'Loading the experiment data from {} ...'.format(expdata_path))
         self.expdata, self.expdata_cov = self._read_in_exp_data(expdata_path)
         self.nobs = self.expdata.shape[0]
 
         # setup the emulator
+        logging.info('Initializing emulators for the training model ...')
         self.emu = Emulator(
             training_set_path=training_data_path,
             parameter_file=model_parafile
@@ -243,6 +252,7 @@ class Chain:
 
         """
 
+        logging.info('Starting MCMC ...')
         sampler = LoggingEnsembleSampler(
             nwalkers, self.ndim, self.log_posterior, pool=self
         )
@@ -314,7 +324,7 @@ class Chain:
 
 def main():
     parser = argparse.ArgumentParser(
-            description='Markov chain Monte Carlo',
+            description='Markov Chain Monte Carlo',
             formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument(
