@@ -31,6 +31,7 @@ import emcee
 import h5py
 import numpy as np
 from scipy.linalg import lapack
+import matplotlib.pyplot as plt
 
 from . import workdir, parse_model_parameter_file
 from .emulator import Emulator
@@ -185,7 +186,6 @@ class Chain:
             # add prior for extra_std (model sys error)
             lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
 
-
         return lp
 
     def _read_in_exp_data(self, filepath):
@@ -260,10 +260,38 @@ class Chain:
         sampler.run_mcmc(X0, nsteps, status=status)
 
         logging.info('writing chain to file')
+
+        true_val = [0.2, 0.5, 0.7, 0.4]
+        fig, axlist = plt.subplots(self.ndim, 1, sharex=True)
+        for idim in range(self.ndim):
+            for iwalker in range(nwalkers):
+                axlist[idim].plot([0, nsteps], [true_val[idim], true_val[idim]], '-r')
+                axlist[idim].plot(sampler.chain[iwalker, :, idim], '-k', alpha=0.1)
+        axlist[0].set_xlim([0, nsteps])
+        plt.show()
+
         samples = sampler.chain[:, :, :].reshape((-1, self.ndim))
+
+        import corner
+        fig = corner.corner(samples, labels=["$A$", "$B$", "$C$", "D"])
+        plt.savefig("test.png")
         results = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
                       zip(*np.percentile(samples, [16, 50, 84], axis=0)))
         print(list(results))
+
+        xx = np.linspace(-5, 15, 42)
+        fig = plt.figure()
+        plt.errorbar(xx, self.expdata, np.diag(self.expdata_cov),
+                     linestyle='', marker='o', color='k')
+        xl = np.linspace(-5, 5, 41)
+        XX = np.concatenate((xl, xl+10))
+        for a, b, c, d in samples[np.random.randint(len(samples), size=100)]:
+            y1 = a*np.exp(-b*xl**2.)
+            y2 = c*np.cosh(d*xl)
+            Y = np.concatenate((y1, y2))
+            plt.plot(XX, Y, linestyle='-', color='g', alpha=0.1)
+        plt.show()
+
 
 
 def main():
