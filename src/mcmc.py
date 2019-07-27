@@ -168,10 +168,13 @@ class Chain:
         nsamples = np.count_nonzero(inside)
 
         if nsamples > 0:
-            extra_std = X[inside, -1]
+            # not sure why to use the last parameter for extra std
+            extra_std = 0.0*X[inside, -1]
+
             model_Y, model_cov = self.emu.predict(
                 X[inside], return_cov=True, extra_std=extra_std
             )
+            #model_Y, model_cov = self._toy_model(X[inside])
 
             # allocate difference (model - expt) and covariance arrays
             dY = np.empty([nsamples, self.nobs])
@@ -184,9 +187,25 @@ class Chain:
             lp[inside] += list(map(mvn_loglike, dY, cov))
 
             # add prior for extra_std (model sys error)
-            lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
+            lp[inside] += (2*np.log(extra_std + 1e-16)
+                           - extra_std/extra_std_prior_scale)
 
         return lp
+
+    #def _toy_model(self, X):
+    #    nsamples = X.shape[0]
+    #    xx = np.linspace(-5, 5, 21)
+    #    y1 = np.zeros([nsamples, 21])
+    #    y2 = np.zeros([nsamples, 21])
+    #    for j in range(nsamples):
+    #        y1[j, :] = X[j, 0]*np.exp(-X[j, 1]*xx**2.)
+    #        y2[j, :] = X[j, 2]*np.cosh(X[j, 3]*xx)
+    #    Y = np.concatenate((y1, y2), axis=1)
+    #    Y_cov = np.zeros([nsamples, 42, 42])
+    #    for j in range(nsamples):
+    #        for i in range(42):
+    #            Y_cov[j, i, i] = Y[j, i]*0.0001
+    #    return Y, Y_cov
 
     def _read_in_exp_data(self, filepath):
         """This function reads in exp data and compute the covarance matrix"""
@@ -261,7 +280,7 @@ class Chain:
 
         logging.info('writing chain to file')
 
-        true_val = [0.2, 0.5, 0.7, 0.4]
+        true_val = [0.2, 0.5, 0.7, 0.3]
         fig, axlist = plt.subplots(self.ndim, 1, sharex=True)
         for idim in range(self.ndim):
             for iwalker in range(nwalkers):
@@ -279,17 +298,16 @@ class Chain:
                       zip(*np.percentile(samples, [16, 50, 84], axis=0)))
         print(list(results))
 
-        xx = np.linspace(-5, 15, 42)
         fig = plt.figure()
-        plt.errorbar(xx, self.expdata, np.diag(self.expdata_cov),
+        plt.errorbar(range(len(self.expdata)), self.expdata,
+                     np.sqrt(self.expdata_cov.diagonal()),
                      linestyle='', marker='o', color='k')
-        xl = np.linspace(-5, 5, 41)
-        XX = np.concatenate((xl, xl+10))
+        xl = np.linspace(-5, 5, 21)
         for a, b, c, d in samples[np.random.randint(len(samples), size=100)]:
             y1 = a*np.exp(-b*xl**2.)
             y2 = c*np.cosh(d*xl)
             Y = np.concatenate((y1, y2))
-            plt.plot(XX, Y, linestyle='-', color='g', alpha=0.1)
+            plt.plot(range(len(Y)), Y, linestyle='-', color='g', alpha=0.1)
         plt.show()
 
 

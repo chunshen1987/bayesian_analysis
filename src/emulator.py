@@ -70,6 +70,10 @@ class Emulator:
         Z = self.pca.fit_transform(
                 self.scaler.fit_transform(self.model_data))[:, :npc]
 
+        logging.info('{} PCs explain {:.5f} of variance'.format(
+            self.npc, self.pca.explained_variance_ratio_[:self.npc].sum()
+        ))
+
         # Define kernel (covariance function):
         # Gaussian correlation (RBF) plus a noise term.
         ptp = self.design_max - self.design_min
@@ -93,6 +97,14 @@ class Emulator:
             ).fit(self.design_points, z)
             for z in Z.T
         ]
+
+        for n, (evr, gp) in enumerate(zip(
+                self.pca.explained_variance_ratio_, self.gps
+        )):
+            logging.info(
+                'GP {}: {:.5f} of variance, LML = {:.5g}, kernel: {}'
+                .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
+            )
 
         # Construct the full linear transformation matrix, which is just the PC
         # matrix with the first axis multiplied by the explained standard
@@ -138,7 +150,6 @@ class Emulator:
         """
         Y = np.dot(Z, self._trans_matrix[:Z.shape[-1]])
         Y += self.scaler.mean_
-
         return Y
 
 
@@ -276,15 +287,3 @@ if __name__ == '__main__':
     kwargs = vars(args)
 
     emu = Emulator(**kwargs)
-    logging.info('{} PCs explain {:.5f} of variance'.format(
-        emu.npc,
-        emu.pca.explained_variance_ratio_[:emu.npc].sum()
-    ))
-
-    for n, (evr, gp) in enumerate(zip(
-            emu.pca.explained_variance_ratio_, emu.gps
-    )):
-        logging.info(
-            'GP {}: {:.5f} of variance, LML = {:.5g}, kernel: {}'
-            .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
-        )

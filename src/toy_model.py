@@ -11,9 +11,9 @@ import numpy as np
 import pathlib
 from shutil import copy
 
-def model(para_dict, x):
-    """This is a simple model"""
-    rel_error = 0.1
+def toy_model(para_dict, x):
+    """This is a simple toy model"""
+    rel_error = 0.01
     y1 = para_dict["A"]*np.exp(-para_dict["B"]*x**2.)
     y1 = y1*(1. + np.random.normal(0., rel_error, len(x)))
     y2 = para_dict["C"]*np.cosh(para_dict["D"]*x)
@@ -29,7 +29,7 @@ def pseudo_expdata(x):
         "C": 0.7,
         "D": 0.3,
     }
-    Y_exp = model(para_dict_true, x)
+    Y_exp = toy_model(para_dict_true, x)
     Y_stat_err = 0.1*Y_exp
     Y_sys_err = 0.1*Y_exp
     output = np.array([Y_exp, Y_stat_err, Y_sys_err])
@@ -62,7 +62,7 @@ def main():
             para_dict.update({str(par[0]): float(par[1])})
         para_file.close()
 
-        Y = model(para_dict, x)
+        Y = toy_model(para_dict, x)
 
         sample_id = args.input_file.split("_")[1]
         folder_name = 'run_{}'.format(sample_id)
