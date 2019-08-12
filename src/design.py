@@ -156,11 +156,15 @@ def main():
         '-par', '--par_file', metavar='', type=str,
         default='model_parameter_dict_examples/iEBE-MUSIC.txt',
         help='user-defined model parameters dictionary file')
+    parser.add_argument(
+        '-n', '--npoints', metavar='', type=int,
+        default=500,
+        help='number of desgin points')
     args = parser.parse_args()
 
     for validation in [False, True]:
-        Design(args.par_file, validation=validation).write_files(
-                                                            args.inputs_dir)
+        Design(args.par_file, npoints=args.npoints,
+               validation=validation).write_files(args.inputs_dir)
 
     logging.info('wrote all files to %s', args.inputs_dir)
 
