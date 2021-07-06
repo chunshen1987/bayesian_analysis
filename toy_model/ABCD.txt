@@ -1,0 +1,6 @@
+# This file contains model parameters for a test model
+# format: parameter_name: label, min, max
+A: A, 0., 1.
+B: B, 0., 1.
+C: C, 0., 1.
+D: D, 0., 1.

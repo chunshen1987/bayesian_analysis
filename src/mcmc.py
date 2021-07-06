@@ -89,7 +89,7 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
         nsteps).
 
         """
-        logging.info('running %d walkers for %d steps', self.k, nsteps)
+        logging.info('running %d walkers for %d steps', self.nwalkers, nsteps)
 
         if status is None:
             status = nsteps // 10
@@ -282,8 +282,7 @@ class Chain:
             X0,
             nburnsteps - nburn0,
             status=status,
-            storechain=False
-        )[0]
+        )
         sampler.reset()
         logging.info('burn-in complete, starting production')
 

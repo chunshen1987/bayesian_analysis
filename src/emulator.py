@@ -23,7 +23,8 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.gaussian_process import GaussianProcessRegressor as GPR
 from sklearn.gaussian_process import kernels
-from sklearn.externals import joblib
+#from sklearn.externals import joblib
+import joblib
 
 from . import cachedir, parse_model_parameter_file
 
