@@ -1,0 +1,9 @@
+# This file contains model parameters in the IPGlasmaFramework
+# for bayesian analysis of subnucleon structure
+# format: parameter_name: label, min, max
+m: m, 0.05, 2                           # the infrared cut-off mass (GeV)
+BG: BG, 1, 10                          # Gaussian width for quark positions (GeV^-2)
+BGq: BGq, 0.1, 10                      # Gaussian width for quark density profile (GeV^-2)
+smearingWidth: smearQsWidth, 0, 1      # the smearing width for Qs (GeV^-1)
+useConstituentQuarkProton: Nq, 1, 10   # number of quarks
+QsmuRatio: QsmuRatio, 0.2, 1.5         # the ratio between color charge density and saturation scale
