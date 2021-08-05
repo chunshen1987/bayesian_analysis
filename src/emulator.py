@@ -161,14 +161,15 @@ class Emulator:
         self.model_data = []
         self.design_points = []
         for iev in glob(path.join(data_path, "*")):
-            with open(path.join(iev, "parameters.txt"), "r") as parfile:
+            event_id = iev.split("_")[-1]
+            with open(path.join(iev, "parameter_{}".format(event_id)), "r") as parfile:
                 parameters = []
                 for line in parfile:
                     line = line.split()
                     parameters.append(float(line[1]))
             self.design_points.append(parameters)
-            temp_data = np.loadtxt(path.join(iev, "output.txt"))
-            self.model_data.append(temp_data)
+            temp_data = np.loadtxt(path.join(iev, "Bayesian_output.txt"))
+            self.model_data.append(temp_data[:, 0])
         self.design_points = np.array(self.design_points)
         self.model_data = np.array(self.model_data)
         logging.info("All training data are loaded.")
