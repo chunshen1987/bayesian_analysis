@@ -121,7 +121,8 @@ class Chain:
     def __init__(self, mcmc_path=workdir / 'mcmc' / 'chain.h5',
                  expdata_path="./exp_data.dat",
                  model_parafile="./model.dat",
-                 training_data_path="./training_data"
+                 training_data_path="./training_data",
+                 npc=10,
     ):
         logging.info('Initializing MCMC ...')
         self.mcmc_path = mcmc_path
@@ -151,12 +152,14 @@ class Chain:
             'Loading the experiment data from {} ...'.format(expdata_path))
         self.expdata, self.expdata_cov = self._read_in_exp_data(expdata_path)
         self.nobs = self.expdata.shape[0]
+        self.closureTestFalg = False
 
         # setup the emulator
         logging.info('Initializing emulators for the training model ...')
         self.emu = Emulator(
             training_set_path=training_data_path,
-            parameter_file=model_parafile
+            parameter_file=model_parafile,
+            npc=npc
         )
 
 
@@ -222,6 +225,16 @@ class Chain:
         return np.random.uniform(self.min, self.max, (n, self.ndim))
 
 
+    def set_closure_test_truth(self, filename):
+        self.closureTestFalg = True
+        self.trueParams = []
+        with open(filename, "r") as parfile:
+            for line in parfile:
+                line = line.split()
+                self.trueParams.append(float(line[1]))
+        self.trueParams = np.array(self.trueParams)
+
+
     @staticmethod
     def map(f, args):
         """
@@ -276,22 +289,33 @@ class Chain:
         sampler.run_mcmc(X0, nsteps, status=status)
 
         logging.info('writing chain to file')
+        return(sampler)
 
-        fig, axlist = plt.subplots(self.ndim, 1, sharex=True)
+
+    def make_plots(self, chains):
+        nwalkers, nsteps, ndim = chains.shape
+        fig, axlist = plt.subplots(ndim, 1, sharex=True)
         for idim in range(self.ndim):
             for iwalker in range(nwalkers):
-                axlist[idim].plot(sampler.chain[iwalker, :, idim], '-k', alpha=0.1)
+                axlist[idim].plot(chains[iwalker, :, idim], '-k', alpha=1./nwalkers)
         axlist[0].set_xlim([0, nsteps])
         plt.show()
 
-        samples = sampler.chain[:, :, :].reshape((-1, self.ndim))
+        samples = chains[:, :, :].reshape((-1, ndim))
 
         import corner
         fig = corner.corner(samples, labels=self.label)
+        if self.closureTestFalg:
+            corner.overplot_lines(fig, self.trueParams, color="C1")
+            corner.overplot_points(fig, self.trueParams[None], marker="o", color="C1")
         plt.savefig("test.png")
         results = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
                       zip(*np.percentile(samples, [16, 50, 84], axis=0)))
-        print(list(results))
+        for ipar, par in enumerate(list(results)):
+            print("%s = %.4f^{+%.4f}_{-%.4f}, truth = %.4f" % (
+                self.label[ipar], par[0], par[1], par[2],
+                self.trueParams[ipar])
+            )
 
         fig = plt.figure()
         plt.errorbar(range(len(self.expdata)), self.expdata,

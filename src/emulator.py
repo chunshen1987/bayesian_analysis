@@ -170,8 +170,8 @@ class Emulator:
                     parameters.append(float(line[1]))
             self.design_points.append(parameters)
             temp_data = np.loadtxt(path.join(iev, "Bayesian_output.txt"))
-            self.model_data.append(np.log(temp_data[:, 0]))
-            self.model_data_err.append(temp_data[:, 1]/temp_data[:, 0])
+            self.model_data.append(np.log(temp_data[:, 1]))
+            self.model_data_err.append(temp_data[:, 2]/temp_data[:, 1])
         self.design_points = np.array(self.design_points)
         self.model_data = np.array(self.model_data)
         self.model_data_err = np.nan_to_num(
