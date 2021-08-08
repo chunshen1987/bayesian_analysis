@@ -136,9 +136,11 @@ class Chain:
         )
         self.pardict = parse_model_parameter_file(model_parafile)
         self.ndim = len(self.pardict.keys())
+        self.label = []
         self.min = []
         self.max = []
         for par, val in self.pardict.items():
+            self.label.append(val[0])
             self.min.append(val[1])
             self.max.append(val[2])
         self.min = np.array(self.min)
@@ -184,7 +186,6 @@ class Chain:
             model_Y, model_cov = self.emu.predict(
                 X[inside], return_cov=True, extra_std=extra_std
             )
-            #model_Y, model_cov = self._toy_model(X[inside])
 
             # allocate difference (model - expt) and covariance arrays
             dY = np.empty([nsamples, self.nobs])
@@ -202,20 +203,6 @@ class Chain:
 
         return lp
 
-    #def _toy_model(self, X):
-    #    nsamples = X.shape[0]
-    #    xx = np.linspace(-5, 5, 21)
-    #    y1 = np.zeros([nsamples, 21])
-    #    y2 = np.zeros([nsamples, 21])
-    #    for j in range(nsamples):
-    #        y1[j, :] = X[j, 0]*np.exp(-X[j, 1]*xx**2.)
-    #        y2[j, :] = X[j, 2]*np.cosh(X[j, 3]*xx)
-    #    Y = np.concatenate((y1, y2), axis=1)
-    #    Y_cov = np.zeros([nsamples, 42, 42])
-    #    for j in range(nsamples):
-    #        for i in range(42):
-    #            Y_cov[j, i, i] = Y[j, i]*0.0001
-    #    return Y, Y_cov
 
     def _read_in_exp_data(self, filepath):
         """This function reads in exp data and compute the covarance matrix"""
@@ -223,8 +210,8 @@ class Chain:
         nobs = data.shape[0]
         data_cov = np.zeros([nobs, nobs])
         for i in range(nobs):
-            data_cov[i, i] = data[i, 1]**2.
-        return data[:, 0], data_cov
+            data_cov[i, i] = (data[i, 2]/data[i, 1])**2.
+        return np.log(data[:, 1]), data_cov
 
 
     def random_pos(self, n=1):
@@ -290,11 +277,9 @@ class Chain:
 
         logging.info('writing chain to file')
 
-        true_val = [0.2, 0.5, 0.7, 0.3]
         fig, axlist = plt.subplots(self.ndim, 1, sharex=True)
         for idim in range(self.ndim):
             for iwalker in range(nwalkers):
-                axlist[idim].plot([0, nsteps], [true_val[idim], true_val[idim]], '-r')
                 axlist[idim].plot(sampler.chain[iwalker, :, idim], '-k', alpha=0.1)
         axlist[0].set_xlim([0, nsteps])
         plt.show()
@@ -302,7 +287,7 @@ class Chain:
         samples = sampler.chain[:, :, :].reshape((-1, self.ndim))
 
         import corner
-        fig = corner.corner(samples, labels=["$A$", "$B$", "$C$", "D"])
+        fig = corner.corner(samples, labels=self.label)
         plt.savefig("test.png")
         results = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
                       zip(*np.percentile(samples, [16, 50, 84], axis=0)))
@@ -312,12 +297,10 @@ class Chain:
         plt.errorbar(range(len(self.expdata)), self.expdata,
                      np.sqrt(self.expdata_cov.diagonal()),
                      linestyle='', marker='o', color='k')
-        xl = np.linspace(-5, 5, 21)
-        for a, b, c, d in samples[np.random.randint(len(samples), size=100)]:
-            y1 = a*np.exp(-b*xl**2.)
-            y2 = c*np.cosh(d*xl)
-            Y = np.concatenate((y1, y2))
-            plt.plot(range(len(Y)), Y, linestyle='-', color='g', alpha=0.1)
+        model_Y = self.emu.predict(
+                samples[np.random.randint(len(samples), size=100)])
+        for model_res in model_Y:
+            plt.plot(range(len(self.expdata)), model_res, color='r', alpha=0.3)
         plt.show()
 
 

@@ -82,7 +82,7 @@ class Emulator:
         kernel = (
             1. * kernels.RBF(
                 length_scale=ptp,
-                length_scale_bounds=np.outer(ptp, (.1, 10))
+                length_scale_bounds=np.outer(ptp, (.01, 100))
             ) +
             kernels.WhiteKernel(
                 noise_level=.1**2,
@@ -93,7 +93,7 @@ class Emulator:
         # Fit a GP (optimize the kernel hyperparameters) to each PC.
         self.gps = [
             GPR(
-                kernel=kernel, alpha=0,
+                kernel=kernel, alpha=0.,
                 n_restarts_optimizer=nrestarts,
                 copy_X_train=False
             ).fit(self.design_points, z)
@@ -159,18 +159,23 @@ class Emulator:
         """This function read in training data set at every sample point"""
         logging.info("loading training data from {} ...".format(data_path))
         self.model_data = []
+        self.model_data_err = []
         self.design_points = []
         for iev in glob(path.join(data_path, "*")):
-            with open(path.join(iev, "parameters.txt"), "r") as parfile:
+            event_id = iev.split("_")[-1]
+            with open(path.join(iev, "parameter_{}".format(event_id)), "r") as parfile:
                 parameters = []
                 for line in parfile:
                     line = line.split()
                     parameters.append(float(line[1]))
             self.design_points.append(parameters)
-            temp_data = np.loadtxt(path.join(iev, "output.txt"))
-            self.model_data.append(temp_data)
+            temp_data = np.loadtxt(path.join(iev, "Bayesian_output.txt"))
+            self.model_data.append(np.log(temp_data[:, 0]))
+            self.model_data_err.append(temp_data[:, 1]/temp_data[:, 0])
         self.design_points = np.array(self.design_points)
         self.model_data = np.array(self.model_data)
+        self.model_data_err = np.nan_to_num(
+                np.abs(np.array(self.model_data_err)))
         logging.info("All training data are loaded.")
 
 
