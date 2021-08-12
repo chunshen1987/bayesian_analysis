@@ -307,15 +307,22 @@ class Chain:
         fig = corner.corner(samples, labels=self.label)
         if self.closureTestFalg:
             corner.overplot_lines(fig, self.trueParams, color="C1")
-            corner.overplot_points(fig, self.trueParams[None], marker="o", color="C1")
-        plt.savefig("test.png")
+            corner.overplot_points(fig, self.trueParams[None], marker="o",
+                                   color="C1")
+        plt.savefig("posterior.png")
         results = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
                       zip(*np.percentile(samples, [16, 50, 84], axis=0)))
-        for ipar, par in enumerate(list(results)):
-            print("%s = %.4f^{+%.4f}_{-%.4f}, truth = %.4f" % (
-                self.label[ipar], par[0], par[1], par[2],
-                self.trueParams[ipar])
-            )
+        if self.closureTestFalg:
+            for ipar, par in enumerate(list(results)):
+                print("%s = %.4f^{+%.4f}_{-%.4f}, truth = %.4f" % (
+                    self.label[ipar], par[0], par[1], par[2],
+                    self.trueParams[ipar])
+                )
+        else:
+            for ipar, par in enumerate(list(results)):
+                print("%s = %.4f^{+%.4f}_{-%.4f}" % (
+                                self.label[ipar], par[0], par[1], par[2])
+                )
 
         fig = plt.figure()
         plt.errorbar(range(len(self.expdata)), self.expdata,
