@@ -20,6 +20,7 @@ Run ``python -m src.design --help`` for usage information.
 import logging
 from pathlib import Path
 import subprocess
+from datetime import datetime
 
 import numpy as np
 
@@ -48,25 +49,40 @@ def generate_lhs(npoints, ndim, seed):
         lhs = np.load(cachefile)
     else:
         logging.debug('not found in cache, generating using R')
+        # convensional Latin Hypercube
+        #proc = subprocess.run(
+        #    ['R', '--slave'],
+        #    input="""
+        #    library('lhs')
+        #    set.seed({})
+        #    write.table(maximinLHS({}, {}), col.names=FALSE, row.names=FALSE)
+        #    """.format(seed, npoints, ndim).encode(),
+        #    stdout=subprocess.PIPE,
+        #    check=True
+        #)
+        #lhs = np.array(
+        #    [l.split() for l in proc.stdout.splitlines()],
+        #    dtype=float
+        #)
+
+        # Maximum Projection Latin Hypercube sampling
         proc = subprocess.run(
             ['R', '--slave'],
             input="""
-            library('lhs')
+            library(MaxPro)
             set.seed({})
-            write.table(maximinLHS({}, {}), col.names=FALSE, row.names=FALSE)
+            write.table(MaxProRunOrder(MaxProLHD({}, {})$Design)$Design, col.names=FALSE, row.names=FALSE)
             """.format(seed, npoints, ndim).encode(),
             stdout=subprocess.PIPE,
             check=True
         )
-
         lhs = np.array(
-            [l.split() for l in proc.stdout.splitlines()],
+            [l.split()[1:] for l in proc.stdout.splitlines()],
             dtype=float
         )
 
         cachefile.parent.mkdir(exist_ok=True)
         np.save(cachefile, lhs)
-
     return lhs
 
 
@@ -80,7 +96,6 @@ class Design:
     creates the validation design if `validation` is true.
     If `seed` is not given, a default random seed is used
     (different defaults for the main and validation designs).
-
     Public attributes:
 
     - ``type``: 'main' or 'validation'
@@ -105,7 +120,9 @@ class Design:
 
         # set default seeds
         if seed is None:
-            seed = 751783496 if validation else 450829120
+            #seed = 751783496 if validation else 450829120
+            seed = datetime.now().timestamp()
+            print("seed = {}".format(seed))
 
         self.min = []
         self.max = []

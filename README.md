@@ -14,6 +14,8 @@ Installation
 
 4. In the R console, type the command `install.packages('lhs')` and pick an appropriate download mirror if prompted. To ensure the package was properly installed, type `library(lhs)` in the R console. If that command runs without error, the package is installed. Close the R console by typing `quit()`.
 
+5. In the R console, type the command `install.packages('MaxPro')` and pick an appropriate download mirror if prompted. To ensure the package was properly installed, type `library(lhs)` in the R console. If that command runs without error, the package is installed. Close the R console by typing `quit()`.
+
 
 Test Run with a toy model
 -------------------------
