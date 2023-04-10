@@ -24,13 +24,10 @@ for ifile, filePath in enumerate(fileList):
     for key in parDict.keys():
         if "Slope" not in key and "shear" not in key:
             transParDict[key] = parDict[key]
-    transParDict["ylossParam4At2"] = parDict["ylossParam4Slope1"]*2.
-    transParDict["ylossParam4At4"] = (transParDict["ylossParam4At2"]
-                                      + parDict["ylossParam4Slope2"]*2.)
-    transParDict["ylossParam4At6"] = (transParDict["ylossParam4At4"]
-                                      + parDict["ylossParam4Slope3"]*2.)
-    transParDict["ylossParam4At10"] = (transParDict["ylossParam4At6"]
-                                       + parDict["ylossParam4Slope3"]*4.)
+    ylossParam4At10 = max(0.,
+        parDict["ylossParam4At6"]
+        + (parDict["ylossParam4At6"] - parDict["ylossParam4At4"])*2.)
+    transParDict["ylossParam4At10"] = ylossParam4At10
     transParDict["Shear_to_S_ratio"] = parDict["shear_muB0"]
     transParDict["shear_muBf0p2"] = (parDict["shear_muB0p2"]
                                      /max(1e-8, parDict["shear_muB0"]))
