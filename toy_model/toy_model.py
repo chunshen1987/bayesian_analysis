@@ -32,7 +32,7 @@ def pseudo_expdata(x):
     Y_exp = toy_model(para_dict_true, x)
     Y_stat_err = 0.1*Y_exp
     Y_sys_err = 0.1*Y_exp
-    output = np.array([Y_exp, Y_stat_err, Y_sys_err])
+    output = np.array([range(len(Y_exp)), Y_exp, Y_stat_err, Y_sys_err])
     return output
 
 
@@ -51,9 +51,9 @@ def main():
 
     x = np.linspace(-5, 5., 21)
     if args.exp:
-        exp_data= pseudo_expdata(x)
+        exp_data = pseudo_expdata(x)
         np.savetxt("pseudo_expdata.txt", exp_data.transpose(), delimiter=" ",
-                   fmt="%.4e", header="Y  Y_stat_err  Y_sys_err")
+                   fmt="%.4e", header="idx  Y  Y_stat_err  Y_sys_err")
     else:
         para_dict = {}
         para_file = open(args.input_file, "r")
@@ -64,12 +64,14 @@ def main():
 
         Y = toy_model(para_dict, x)
 
+        outputs = np.array([range(len(Y)), Y, 0.01*Y])
+
         sample_id = args.input_file.split("_")[1]
         folder_name = 'run_{}'.format(sample_id)
         pathlib.Path(folder_name).mkdir(parents=True, exist_ok=True)
-        copy(args.input_file, "{}/parameters.txt".format(folder_name))
-        np.savetxt("{}/output.txt".format(folder_name),
-                   Y, delimiter=" ", fmt="%.4e")
+        copy(args.input_file, "{}/parameter_{}".format(folder_name, sample_id))
+        np.savetxt("{}/Bayesian_output.txt".format(folder_name),
+                   outputs.transpose(), delimiter=" ", fmt="%.4e")
 
 if __name__ == '__main__':
     main()
